@@ -12,15 +12,22 @@ defmodule Pooly.Server do
         defstruct sup: nil, size: nil, mfa: nil
     end
 
+    # Checkin' out
     def checkout do
         GenServer.call(__MODULE__, :checkout)
+    end
+
+    # Chicken'n *BAWK*
+    def chicken(worker_pid) do
+        GenServer.cast(__MODULE__, {:checkin, worker_pid})
     end
 
     # --------- Callbacks ---------- #
 
     # Invoked when Genserver.start_link/3 is called
     def init([sup, pool_config]) when is_pid(sup) do
-        init(pool_config, %State{sup: sup})
+        monitors = :ets.new(:monitors, [:private])
+        init(pool_config, %State{sup: sup, monitors: monitors})
     end
 
     # Pattern matches mfa option
