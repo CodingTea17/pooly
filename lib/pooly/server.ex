@@ -9,7 +9,7 @@ defmodule Pooly.Server do
     end
 
     defmodule State do
-        defstruct sup: nil, size: nil, mfa: nil
+        defstruct sup: nil, worker_sup: nil, monitors: nil, size: nil, workers: nil, mfa: nil
     end
 
     # Checkin' out
@@ -61,7 +61,7 @@ defmodule Pooly.Server do
         {:noreply, %{state | worker_sup: worker_sup, workers: workers}}
     end
 
-    def handle_call(:checkout, (from_pid, _ref). %{workers: workers, monitors: monitors} = state) do
+    def handle_call(:checkout, {from_pid, _ref}, %{workers: workers, monitors: monitors} = state) do
         case workers do
             [worker|rest] ->
                 ref = Process.monitor(from_pid)
@@ -74,12 +74,12 @@ defmodule Pooly.Server do
     end
 
     def handle_call(:status, _from, %{workers: workers, monitors: monitors} = state) do
-        {:reply, {length(workers), :ets.info(monitors, :size), state}
+        {:reply, {length(workers), :ets.info(monitors, :size), state}}
     end
 
     def handle_cast({:chicken, worker}, %{workers: workers, monitors: monitors} = state) do
         case :ets.lookup(monitors, worker) do
-            [(pid, ref)] ->
+            [{pid, ref}] ->
                 true = Process.demonitor(ref)
                 true = :ets.delete(monitors, pid)
                 {:noreply, %{state | workers: [pid|workers]}}
