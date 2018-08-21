@@ -76,6 +76,19 @@ defmodule Pooly.Server do
         end
     end
 
+    # Handles the trapped exits when a worker process crashes
+    def handle_call({:EXIT, pid, _reason}, state = %{monitors: monitors, workers: workers, worker_sup: worker_sup}) do
+        case :ets.lookup(monitors, pid) do
+            [{pid, ref}] ->
+                true = Process.demonitor(ref)
+                true = :ets.delete(monitors, ref)
+                new_state = %{state | workers: [new_worker(worker_sup)|workers]}
+                {:noreply, new_state}
+            [[]] ->
+                {:noreply, state}
+        end
+    end
+
     def handle_call(:checkout, {from_pid, _ref}, %{workers: workers, monitors: monitors} = state) do
         case workers do
             [worker|rest] ->
