@@ -8,7 +8,7 @@ defmodule Pooly.Server do
         GenServer.start_link(__MODULE__, pools_config, name: __MODULE__)
     end
 
-    def start_link(pool_name) do
+    def checkout(pool_name) do
         # nifty "dynamically" created atom 10/10
         GenServer.call(:"#{pool_name}Server", :checkout)
     end
@@ -26,7 +26,7 @@ defmodule Pooly.Server do
     
     def init(pools_config) do
         pools_config |> Enum.each(fn(pool_config) ->
-            send(self, {:start_pool, pool_config})
+            send(self(), {:start_pool, pool_config})
         end)
 
         {:ok, pools_config}
