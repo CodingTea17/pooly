@@ -3,7 +3,7 @@ defmodule Pooly.PoolServer do
     import Supervisor.Spec
 
     defmodule State do
-        defstruct pool_sup: nil, worker_sup: nil, monitors: nil, size: nil, workers: nil, name: nil, mfa: nil
+        defstruct pool_sup: nil, worker_sup: nil, monitors: nil, size: nil, workers: nil, name: nil, mfa: nil, max_overflow: nil, overflow: nil
     end
 
     # ------------- API -------------#
@@ -49,6 +49,10 @@ defmodule Pooly.PoolServer do
         init(rest, %{state | size: size})
     end
 
+    def init([{:max_overflow, max_overflow}|rest], state) do
+        init(rest, %{state | max_overflow: max_overflow})
+    end
+
     # Sends a message to "self" to fire up the worker Supervisor process
     def init([], state) do
         send(self(), :start_worker_supervisor)
@@ -60,15 +64,26 @@ defmodule Pooly.PoolServer do
         init(rest, state)
     end
 
-    def handle_call(:checkout, {from_pid, _ref}, %{workers: workers, monitors: monitors} = state) do
+    def handle_call({:checkout, block}, {from_pid, _ref} = from, state) do
+        %{worker_sup: worker_sup,
+          workers: workers,
+          monitors: monitors,
+          overflow: overflow,
+          max_overflow: max_overflow} = state
+
         case workers do
             [worker|rest] ->
                 ref = Process.monitor(from_pid)
                 true = :ets.insert(monitors, {worker, ref})
                 {:reply, worker, %{state | workers: rest}}
 
+            [] max_overflow > 0 and overflow < max_overflow ->
+                {worker, ref} = new_worker(worker_sup, from_pid)
+                true = :ets.insert(monitors, {worker, ref})
+                {:reply, worker, %{state | overflow: overflow+1}}
+
             [] ->
-                {:reply, :noproc, state}
+                {:reply, :full, state}
         end
     end
 
