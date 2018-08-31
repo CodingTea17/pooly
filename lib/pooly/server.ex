@@ -8,9 +8,10 @@ defmodule Pooly.Server do
         GenServer.start_link(__MODULE__, pools_config, name: __MODULE__)
     end
 
-    def checkout(pool_name) do
+    def checkout(pool_name, block, timeout) do
+        Pooly.PoolServer.checkout(pool_name, block, timeout)
         # nifty "dynamically" created atom 10/10
-        GenServer.call(:"#{pool_name}Server", :checkout)
+        # GenServer.call(:"#{pool_name}Server", :checkout)
     end
 
     # Chicken'n *BAWK*
