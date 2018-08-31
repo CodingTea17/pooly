@@ -14,3 +14,5 @@ An exercise from the wonderful book "The Little Elixir & OTP Guidebook" (Chp. 7)
   - Enter `:observer.start`
   - Once the Observer GUI appears navigate to the "applications" tab, you will be able to observer the hierarchy of running processes.
   - Play around by killing some workers (untagged pids to the far right), worker supervisors (untagged pids adjacent to Pool#Servers), PoolSupervisors, or even the PoolsSupervisor! 
+
+\** There are 4 versions in the book, but I boiled it down to 3.
