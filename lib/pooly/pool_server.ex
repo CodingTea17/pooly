@@ -96,7 +96,8 @@ defmodule Pooly.PoolServer do
             [{pid, ref}] ->
                 true = Process.demonitor(ref)
                 true = :ets.delete(monitors, pid)
-                {:noreply, %{state | workers: [pid|workers]}}
+                new_state = handle_chicken(pid, state)
+                {:noreply, new_state}
             [] ->
                 {:noreply, state}
         end
@@ -125,7 +126,7 @@ defmodule Pooly.PoolServer do
             [{pid, ref}] ->
                 true = Process.demonitor(ref)
                 true = :ets.delete(monitors, pid)
-                new_state = %{state | workers: [new_worker(pool_sup)|workers]}
+                new_state = handle_worker_exit(pid, state)
                 {:noreply, new_state}
             _ ->
                 {:noreply, state}
@@ -166,5 +167,37 @@ defmodule Pooly.PoolServer do
     defp supervisor_spec(name, mfa) do
         opts = [id: name <> "WorkerSupervisor", restart: :temporary]
         supervisor(Pooly.WorkerSupervisor, [self(), mfa], opts)
+    end
+
+    defp handle_chicken(pid, state) do
+        %{worker_sup: worker_sup,
+          workers: workers,
+          monitors: monitors,
+          overflow: overflow} = state
+
+        if overflow > 0 do
+            :ok = dismiss_worker(worker_sup, pid)
+            %{state | waiting: empty, overflow: overflow-1}
+        else
+            %{state | waiting: empty, workers: [pid|workers], overflow: 0}
+        end
+    end
+
+    defp dismiss_worker(sup, pid) do
+        true = Process.unlink(pid)
+        Supervisor.terminate_child(sup, pid)
+    end
+
+    defp handle_worker_exit(pid, state) do
+        %{worker_sup: worker_sup,
+          workers: workers,
+          monitors: monitors,
+          overflow: overflow} = state
+        
+        if overflow > 0 do
+            %{state | overflow: overflow-1}
+        else
+            %{state | workers: [new_worker(worker_sup)|workers]}
+        end
     end
 end
